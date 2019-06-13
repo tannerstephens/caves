@@ -2,19 +2,20 @@
 
 from opensimplex import OpenSimplex
 import pygame
+import random
 
 def count_true_neighbors(x,y,base):
   count = 0  
   for dx in range(-1,2):
     for dy in range(-1,2):
       if dx == 0 and dy == 0:
-        count += 1
         continue
 
       look_x = x + dx
       look_y = y + dy
 
       if look_x < 0 or look_x >= len(base) or look_y < 0 or look_y >= len(base[0]):
+        count += 1
         continue
 
       if base[look_x][look_y]:
@@ -22,6 +23,19 @@ def count_true_neighbors(x,y,base):
 
   return count
 
+
+def smooth(cave):
+  new = [[None for _ in range(len(cave[0]))] for _ in range(len(cave))]
+
+  for x, col in enumerate(cave):
+    for y, cell in enumerate(col):
+      count = count_true_neighbors(x,y,cave)
+      if count >= 5:
+        new[x][y] = True
+      else:
+        new[x][y] = False
+  
+  return new
 
 def generate_cave(width=100, height=100, seed=None, threshold=0, steps=4):
   if seed:
@@ -40,22 +54,26 @@ def generate_cave(width=100, height=100, seed=None, threshold=0, steps=4):
       base[x][y] = True if n > threshold else False
 
   for step in range(steps):
-    new = [[None for _ in range(height)] for _ in range(width)]
-
-    for x, col in enumerate(base):
-      for y, cell in enumerate(col):
-        count = count_true_neighbors(x,y,base)
-        if count >= 5:
-          new[x][y] = True
-        else:
-          new[x][y] = False
-  
-    base = new[:]
+    base = smooth(base)
 
   for x in range(width):
     base[x] = [True] + base[x] + [True]
   
   base = [[True]*len(base[0])] + base + [[True]*len(base[0])]
+
+  new = [[True for _ in range(height+2)] for _ in range(width+2)]
+
+  for _ in range(2):
+    for x in range(width):
+      for y in range(height):
+        real_x = x+1
+        real_y = y+1
+
+        if not ((base[real_x-1][real_y] and base[real_x+1][real_y]) or (base[real_x][real_y-1] and base[real_x][real_y+1]) or base[real_x][real_y]):
+          new[real_x][real_y] = False
+
+    base = new[:]
+    new = [[True for _ in range(height+2)] for _ in range(width+2)]
 
   return base
 
@@ -76,8 +94,8 @@ def display_cave(cave_array, screen, scale=2):
 def explore_caves(seed=4651564651564984444651464648901):
   width = 100
   height = 100
-  scale = 8
-  threshold = 0.11
+  scale = 10
+  threshold = -0.08
   steps = 5
 
   pygame.init()
@@ -111,6 +129,10 @@ def explore_caves(seed=4651564651564984444651464648901):
         elif event.key == pygame.K_DOWN:
           threshold = max((threshold-0.01, -1))
           re_render = True
+        elif event.key == pygame.K_r:
+          seed = random.getrandbits(100)
+          re_render = True
+
 
     if re_render:
       re_render = False   
