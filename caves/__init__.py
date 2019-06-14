@@ -190,8 +190,9 @@ def explore_caves():
   width = 51
   height = 51
   scale = 16
-  threshold = -0.1
+  threshold = -0.08
   steps = 4
+  chunk_size = 32
 
   player_x = 0
   player_y = 0
@@ -202,9 +203,9 @@ def explore_caves():
   screen = pygame.display.set_mode((int(width*scale), int(height*scale)))
 
   running = True
-  redraw = True
+  mining = False
 
-  cave = Cave(threshold=threshold, steps=steps, chunk_size=16)
+  cave = Cave(threshold=threshold, steps=steps, chunk_size=chunk_size)
   
   while not cave.is_accessable(player_x, player_y):
     player_y += 1
@@ -232,7 +233,30 @@ def explore_caves():
           dx = -1
         elif event.key == pygame.K_d or event.key == pygame.K_RIGHT:
           dx = 1
-        elif event.key = pygame.K_SPACE:
+        elif event.key == pygame.K_SPACE:
+          mining = True
+          
+      elif event.type == pygame.KEYUP:
+        if event.key == pygame.K_w or event.key == pygame.K_UP:
+          dy = 0
+        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+          dy = 0
+        elif event.key == pygame.K_a or event.key == pygame.K_LEFT:
+          dx = 0
+        elif event.key == pygame.K_d or event.key == pygame.K_RIGHT:
+          dx = 0
+        elif event.key == pygame.K_SPACE:
+          mining = False
+      elif event.type == MOVEEVENT:
+        d = calculate_direction(dx, dy, d)
+        if dx != 0 or dy != 0:
+          if cave.is_accessable(player_x+dx, player_y):
+            player_x += dx
+            redraw = True
+          if cave.is_accessable(player_x, player_y+dy):
+            player_y += dy
+            redraw = True
+        if mining:
           if d == 0:
             lx = 0
             ly = -1
@@ -245,26 +269,10 @@ def explore_caves():
           elif d == 3:
             lx = -1
             ly = 0
+          else:
+            lx = 0
+            ly = 0
 
           cave.break_block(player_x + lx, player_y + ly)
-          
-      elif event.type == pygame.KEYUP:
-        if event.key == pygame.K_w or event.key == pygame.K_UP:
-          dy = 0
-        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
-          dy = 0
-        elif event.key == pygame.K_a or event.key == pygame.K_LEFT:
-          dx = 0
-        elif event.key == pygame.K_d or event.key == pygame.K_RIGHT:
-          dx = 0
-      elif event.type == MOVEEVENT:
-        d = calculate_direction(dx, dy, d)
-        if dx != 0 or dy != 0:
-          if cave.is_accessable(player_x+dx, player_y):
-            player_x += dx
-            redraw = True
-          if cave.is_accessable(player_x, player_y+dy):
-            player_y += dy
-            redraw = True
 
   pygame.quit()
