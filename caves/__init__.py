@@ -17,6 +17,19 @@ class Cave:
     self.simplex = OpenSimplex(seed=seed)
     self.chunks = dict()
 
+  def break_block(self, x, y):
+    chunk_x, chunk_y = self.calculate_chunk_id(x, y)
+    chunk = self.load_chunk(chunk_x, chunk_y)
+
+    look_x = x - self.chunk_size*chunk_x
+    look_y = y - self.chunk_size*chunk_y
+
+    chunk[look_x][look_y] = False
+
+    self.chunks[chunk_x][chunk_y] = chunk
+
+
+
   def is_accessable(self, x, y):
     chunk_x, chunk_y = self.calculate_chunk_id(x, y)
 
@@ -34,8 +47,7 @@ class Cave:
     if chunk_y not in self.chunks[chunk_x]:
       self._generate_chunk(chunk_x,chunk_y)
     
-    chunk = self.chunks[chunk_x][chunk_y][0]
-    changes = self.chunks[chunk_x][chunk_y][1]
+    chunk = self.chunks[chunk_x][chunk_y]
 
     return chunk
 
@@ -77,7 +89,7 @@ class Cave:
             new[cell_x][cell_y] = False
       base_chunk = new[:]
 
-    self.chunks[x][y] = [base_chunk, []]
+    self.chunks[x][y] = base_chunk
 
   def calculate_chunk_id(self, x, y):
     chunk_x = math.floor(x/self.chunk_size)
@@ -220,6 +232,22 @@ def explore_caves():
           dx = -1
         elif event.key == pygame.K_d or event.key == pygame.K_RIGHT:
           dx = 1
+        elif event.key = pygame.K_SPACE:
+          if d == 0:
+            lx = 0
+            ly = -1
+          elif d == 1:
+            lx = 1
+            ly = 0
+          elif d == 2:
+            lx = 0
+            ly = 1
+          elif d == 3:
+            lx = -1
+            ly = 0
+
+          cave.break_block(player_x + lx, player_y + ly)
+          
       elif event.type == pygame.KEYUP:
         if event.key == pygame.K_w or event.key == pygame.K_UP:
           dy = 0
