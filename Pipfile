@@ -8,6 +8,7 @@ verify_ssl = true
 [packages]
 opensimplex = "*"
 pygame = "*"
+pip = "==18.0"
 
 [requires]
-python_version = "3.6"
+python_version = "3.7.1"
