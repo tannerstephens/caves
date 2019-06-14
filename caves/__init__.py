@@ -17,14 +17,27 @@ class Cave:
     self.simplex = OpenSimplex(seed=seed)
     self.chunks = dict()
 
-  def load_chunk(self, x, y):
-    if x not in self.chunks:
-      self.chunks[x] = dict()
+  def is_accessable(self, x, y):
+    chunk_x, chunk_y = self.calculate_chunk_id(x, y)
+
+    chunk = self.load_chunk(chunk_x, chunk_y)
+
+    look_x = x - self.chunk_size*chunk_x
+    look_y = y - self.chunk_size*chunk_y
+
+    return not chunk[look_x][look_y]
+
+  def load_chunk(self, chunk_x, chunk_y):
+    if chunk_x not in self.chunks:
+      self.chunks[chunk_x] = dict()
     
-    if y not in self.chunks[x]:
-      self._generate_chunk(x,y)
+    if chunk_y not in self.chunks[chunk_x]:
+      self._generate_chunk(chunk_x,chunk_y)
     
-    return self.chunks[x][y]
+    chunk = self.chunks[chunk_x][chunk_y][0]
+    changes = self.chunks[chunk_x][chunk_y][1]
+
+    return chunk
 
   def _generate_chunk(self, x, y):
     base_chunk = [[None for _ in range(self.chunk_size)] for _ in range(self.chunk_size)]
@@ -64,7 +77,7 @@ class Cave:
             new[cell_x][cell_y] = False
       base_chunk = new[:]
 
-    self.chunks[x][y] = base_chunk
+    self.chunks[x][y] = [base_chunk, []]
 
   def calculate_chunk_id(self, x, y):
     chunk_x = math.floor(x/self.chunk_size)
@@ -82,7 +95,6 @@ class Cave:
     result_height = self.chunk_size*abs(chunk_y_end-chunk_y_start)
 
     loaded_area = [[None for _ in range(result_height)] for _ in range(result_width)]
-
     for chunk_x in range(chunk_x_start, chunk_x_end):
       for chunk_y in range(chunk_y_start, chunk_y_end):
         rel_x = chunk_x - chunk_x_start
@@ -105,7 +117,7 @@ class Cave:
     
     return result
 
-def display_cave(cave_array, screen, scale=2):
+def display_cave(cave_array, screen, player_direction, scale=2):
   width = len(cave_array)*scale
   height = len(cave_array[0])*scale
 
@@ -117,15 +129,60 @@ def display_cave(cave_array, screen, scale=2):
         r = pygame.Rect(x*scale, y*scale, scale, scale)
 
         screen.fill((165,165,165), rect=r)
+
+  r = pygame.Rect(math.floor((width-scale)/2), math.floor((height-scale)/2), scale, scale)
+  screen.fill((255,0,0), rect=r)
+
+
+  if player_direction == 0 or player_direction == 0.5 or player_direction == 3.5:
+    r = pygame.Rect(math.floor((width-scale)/2), math.floor((height-scale)/2), scale, max((scale//8, 1)))
+    screen.fill((0,255,0), rect=r)
+  if player_direction == 1 or player_direction == 0.5 or player_direction == 1.5:
+    r = pygame.Rect(max((math.floor((width-scale)/2) + (scale - scale//8), 1)), math.floor((height-scale)/2), max((scale//8, 1)), scale)
+    screen.fill((0,255,0), rect=r)
+  if player_direction == 2 or player_direction == 1.5 or player_direction == 2.5:
+    r = pygame.Rect(math.floor((width-scale)/2), max((math.floor((height-scale)/2) + (scale - scale//8), 1)), scale, max((scale//8, 1)))
+    screen.fill((0,255,0), rect=r)
+  if player_direction == 3 or player_direction == 2.5 or player_direction == 3.5:
+    r = pygame.Rect(math.floor((width-scale)/2), math.floor((height-scale)/2), max((scale//8, 1)), scale)
+    screen.fill((0,255,0), rect=r)
+
+  
+
   pygame.display.flip()
 
+def calculate_direction(dx, dy, d):
+  if dx == 0:
+    if dy == 0:
+      return math.floor(d)
+    elif dy == -1:
+      return 0
+    elif dy == 1:
+      return 2
+  elif dx == 1:
+    if dy == 0:
+      return 1
+    elif dy == -1:
+      return 0.5
+    elif dy == 1:
+      return 1.5
+  elif dx == -1:
+    if dy == 0:
+      return 3
+    elif dy == -1:
+      return 3.5
+    elif dy == 1:
+      return 2.5
+
 def explore_caves():
-  width = 400
-  height = 400
-  scale = 2
-  threshold = -0.08
-  steps = 5
-  seed = 1234
+  width = 51
+  height = 51
+  scale = 16
+  threshold = -0.1
+  steps = 4
+
+  player_x = 0
+  player_y = 0
 
   pygame.init()
 
@@ -133,15 +190,53 @@ def explore_caves():
   screen = pygame.display.set_mode((int(width*scale), int(height*scale)))
 
   running = True
+  redraw = True
 
-  cave = Cave(seed=seed, threshold=threshold, steps=steps)
-  generated_cave = cave.load_area(1, 1, width, height)
-  display_cave(generated_cave, screen, scale)
-  print("Displayed")
+  cave = Cave(threshold=threshold, steps=steps, chunk_size=16)
+  
+  while not cave.is_accessable(player_x, player_y):
+    player_y += 1
+
+  dx = 0
+  dy = 0
+  d = 0
+
+  MOVEEVENT = pygame.USEREVENT+1
+  pygame.time.set_timer(MOVEEVENT, 50)
 
   while running:
+    generated_cave = cave.load_area(player_x - 25, player_y - 25, width, height)
+    display_cave(generated_cave, screen, d, scale)
+
     for event in pygame.event.get():
       if event.type == pygame.QUIT:
         running = False
+      elif event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_w or event.key == pygame.K_UP:
+          dy = -1
+        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+          dy = 1
+        elif event.key == pygame.K_a or event.key == pygame.K_LEFT:
+          dx = -1
+        elif event.key == pygame.K_d or event.key == pygame.K_RIGHT:
+          dx = 1
+      elif event.type == pygame.KEYUP:
+        if event.key == pygame.K_w or event.key == pygame.K_UP:
+          dy = 0
+        elif event.key == pygame.K_s or event.key == pygame.K_DOWN:
+          dy = 0
+        elif event.key == pygame.K_a or event.key == pygame.K_LEFT:
+          dx = 0
+        elif event.key == pygame.K_d or event.key == pygame.K_RIGHT:
+          dx = 0
+      elif event.type == MOVEEVENT:
+        d = calculate_direction(dx, dy, d)
+        if dx != 0 or dy != 0:
+          if cave.is_accessable(player_x+dx, player_y):
+            player_x += dx
+            redraw = True
+          if cave.is_accessable(player_x, player_y+dy):
+            player_y += dy
+            redraw = True
 
   pygame.quit()
